@@ -1,0 +1,44 @@
+{
+  "name": "@jz92/ai-core",
+  "version": "0.1.0",
+  "description": "Contracts, event bus, and security utilities for the @jz92 AI platform. Zero runtime dependencies.",
+  "author": "jz92",
+  "license": "MIT",
+  "private": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@ai-platform/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "scripts": {
+    "build": "tsc --build tsconfig.lib.json",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "ai",
+    "contracts",
+    "types",
+    "observability",
+    "security",
+    "platform",
+    "typescript"
+  ]
+}
