@@ -5,6 +5,9 @@
   "references": [
     {
       "path": "./packages/ai-core"
+    },
+    {
+      "path": "./packages/ai-provider"
     }
   ]
 }

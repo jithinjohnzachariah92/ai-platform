@@ -1,0 +1,45 @@
+{
+  "name": "@jz92/ai-provider",
+  "version": "0.7.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build tsconfig.lib.json",
+    "test": "NODE_ENV=development npx tsx --tsconfig tsconfig.test.json test/smoke.ts",
+    "test:anthropic": "NODE_ENV=production npx tsx --tsconfig tsconfig.test.json test/smoke.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@ai-platform/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.12",
+    "@ai-sdk/openai": "^4.0.11",
+    "@jz92/ai-core": "^0.1.0",
+    "ai": "^7.0.21",
+    "tslib": "^2.3.0"
+  },
+  "optionalDependencies": {
+    "@ai-sdk/google": "^4.0.12",
+    "@ai-sdk/groq": "^4.0.7",
+    "@ai-sdk/mistral": "^4.0.8"
+  },
+  "peerDependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.0"
+  }
+}
