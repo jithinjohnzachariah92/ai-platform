@@ -36,3 +36,9 @@ export type {
   AIRequestOptions,
   AIResponse,
 } from './lib/types.js'
+
+// ── Embedding capabilities ────────────────────────────────────────────────────
+export { generateEmbedding, generateEmbeddingBatch } from './lib/embeddingGateway.js'
+export { resolveEmbeddingProvider } from './lib/embeddingProvider.js'
+export type { EmbeddingProviderConfig } from './lib/embeddingProvider.js'
+export type { EmbeddingInputType } from './lib/embeddingClient.js'

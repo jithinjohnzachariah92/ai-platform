@@ -13,23 +13,24 @@ export type EmbeddingProviderName = 'voyage' | 'openai' | 'ollama';
 export type AIEnvironment = 'development' | 'test' | 'production';
 
 export type AIErrorCode =
-  | 'AUTH_ERROR'
-  | 'BILLING_ERROR'
-  | 'RATE_LIMIT'
-  | 'SERVER_ERROR'
-  | 'MODEL_NOT_FOUND'
-  | 'TOKEN_BUDGET'
-  | 'TIMEOUT'
-  | 'UNKNOWN';
+  | 'AUTH_ERROR'          // 401 — bad key, never retry
+  | 'BILLING_ERROR'       // 402/403 — no credits, never retry
+  | 'RATE_LIMIT'          // 429 — retry with backoff
+  | 'SERVER_ERROR'        // 500/502/503 — retry
+  | 'TIMEOUT'             // request hung — retry once
+  | 'MODEL_NOT_FOUND'     // 404 — model not pulled locally
+  | 'TOKEN_BUDGET'        // input too large — never retry
+  | 'SCHEMA_VALIDATION'   // output didn't match schema — retry once
+  | 'UNKNOWN'             // anything else
 
 // ── Trace context ─────────────────────────────────────────────────────────────
 
 export type TraceContext = {
-  traceId: string;
-  correlationId?: string;
-  userId?: string;
-  sessionId?: string;
-};
+  traceId?: string       // optional — not every call site generates a trace
+  correlationId?: string
+  userId?: string
+  sessionId?: string
+}
 
 // ── Cache context ─────────────────────────────────────────────────────────────
 

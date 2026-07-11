@@ -1,3 +1,5 @@
+import type { AIErrorCode } from '@jz92/ai-core'
+
 /// <reference types="node" />
 
 /**
@@ -18,17 +20,7 @@ export class AIProviderError extends Error {
   }
 }
 
-export type AIErrorCode =
-  | 'AUTH_ERROR'          // 401 — bad key, never retry
-  | 'BILLING_ERROR'       // 402/403 — no credits, never retry
-  | 'RATE_LIMIT'          // 429 — retry with backoff
-  | 'SERVER_ERROR'        // 500/502/503 — retry
-  | 'TIMEOUT'             // request hung — retry once
-  | 'MODEL_NOT_FOUND'     // 404 — model not pulled locally
-  | 'TOKEN_BUDGET'        // input too large — never retry
-  | 'SCHEMA_VALIDATION'   // output didn't match schema — retry once
-  | 'UNKNOWN'             // anything else
-
+export type { AIErrorCode } from '@jz92/ai-core'
 /**
  * Returns true if the error is transient and worth retrying.
  * Auth, billing, and validation errors will never succeed on retry.
