@@ -1,6 +1,6 @@
 {
   "name": "@jz92/ai-provider",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -28,7 +28,7 @@
     "@ai-sdk/anthropic": "^4.0.12",
     "@ai-sdk/openai": "^4.0.11",
     "@ai-sdk/voyage": "^2.0.7",
-    "@jz92/ai-core": "^0.1.0",
+    "@jz92/ai-core": "^0.1.2",
     "ai": "^7.0.21",
     "tslib": "^2.3.0"
   },
