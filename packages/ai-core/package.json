@@ -1,6 +1,6 @@
 {
   "name": "@jz92/ai-core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Contracts, event bus, and security utilities for the @jz92 AI platform. Zero runtime dependencies.",
   "author": "jz92",
   "license": "MIT",
