@@ -1,25 +1,28 @@
 /// <reference types="node" />
 
 import { CacheStats } from "./cache.js"
+import { emit } from '@jz92/ai-core'
+import type { AIProviderName, AIErrorCode, AIEnvironment, PlatformEvent } from '@jz92/ai-core'
 
 /**
  * Observability layer.
  *
- * The package emits structured events for every request. Consumers register
- * a single handler to forward these to their observability stack (Datadog,
- * CloudWatch, Sentry, Pino, etc). The package never decides where logs go.
+ * The package emits structured events for every request via two paths:
  *
- * Usage in the consumer app (once, at startup):
+ * 1. The legacy `onAIEvent` handler (backwards compatible — unchanged
+ *    behaviour for any existing consumer registered this way).
+ * 2. `@jz92/ai-core`'s event bus (`emit`/`onEvent`) — every event is also
+ *    translated into a PlatformEvent and forwarded here, so subscribers
+ *    using the platform-wide bus see ai-provider's events alongside
+ *    vector/retrieval events, all sharing traceId.
+ *
+ * Usage in the consumer app (either or both, once, at startup):
  *
  *   import { onAIEvent } from '@jz92/ai-provider'
+ *   onAIEvent((event) => { logger.info({ source: 'ai-provider', ...event }) })
  *
- *   onAIEvent((event) => {
- *     // forward to your logger / APM
- *     logger.info({ source: 'ai-provider', ...event })
- *   })
- *
- * If no handler is registered, events are logged to console in development
- * (formatted) and emitted as structured JSON in production.
+ *   import { onEvent } from '@jz92/ai-core'
+ *   onEvent((event) => { ... })   // sees ai-provider + vector + retrieval events
  */
 
 export type AIEventType =
@@ -30,47 +33,80 @@ export type AIEventType =
 
 export type AIEvent = {
   type: AIEventType
-  timestamp: string          // ISO 8601
+  timestamp: string
   provider: string
   model: string
   env: string
   durationMs?: number
-  /** present on success */
   usage?: { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number }
-  /** present on failure */
   error?: { code: string; message: string }
-  /** present on retry */
   attempt?: number
-  /** caller-supplied correlation id for tracing across services */
   correlationId?: string
   cacheStats?: CacheStats
 }
 
 type AIEventHandler = (event: AIEvent) => void
 
-// Store the handler on globalThis rather than a module-level variable.
-// Next.js (and other bundlers) can load this module in separate bundle
-// contexts — instrumentation runtime vs API route — each with its own
-// module scope. A module-level variable would not be shared across them.
-// globalThis is shared across all bundles in the same process.
 const GLOBAL_KEY = '__aiProviderEventHandler__'
 
 type GlobalWithHandler = typeof globalThis & {
   [GLOBAL_KEY]?: AIEventHandler | null
 }
 
-/**
- * Register a handler for all AI provider events.
- * Call once at app startup. Replaces any previously registered handler.
- */
 export function onAIEvent(fn: AIEventHandler): void {
   (globalThis as GlobalWithHandler)[GLOBAL_KEY] = fn
 }
 
-/**
- * Emit an event. Called internally by the gateway.
- * Falls back to console if no handler is registered.
- */
+// ── Translation: legacy AIEvent → ai-core PlatformEvent ───────────────────────
+// Best-effort mapping. Fields not carried by the legacy shape (e.g. dimensions
+// on embedding events aren't relevant here — this file only ever saw
+// completion-type events) get sensible defaults rather than crashing.
+
+const toPlatformEvent = (event: AIEvent): PlatformEvent | null => {
+  const traceId = event.correlationId ?? ''
+  const env = (event.env as AIEnvironment) ?? 'development'
+  const provider = event.provider as AIProviderName
+
+  switch (event.type) {
+    case 'request.success':
+      return {
+        source: 'ai-provider', type: 'completion.success',
+        traceId, correlationId: event.correlationId,
+        timestamp: event.timestamp, durationMs: event.durationMs,
+        env, provider, model: event.model,
+        usage: event.usage ?? { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 },
+      }
+    case 'request.failure':
+      return {
+        source: 'ai-provider', type: 'completion.failure',
+        traceId, correlationId: event.correlationId,
+        timestamp: event.timestamp, durationMs: event.durationMs,
+        env, provider, model: event.model,
+        error: { code: (event.error?.code as AIErrorCode) ?? 'UNKNOWN', message: event.error?.message ?? 'unknown error' },
+        attempt: event.attempt ?? 0,
+      }
+    case 'request.retry':
+      return {
+        source: 'ai-provider', type: 'completion.retry',
+        traceId, correlationId: event.correlationId,
+        timestamp: event.timestamp, durationMs: event.durationMs,
+        env, provider, model: event.model,
+        error: { code: (event.error?.code as AIErrorCode) ?? 'UNKNOWN', message: event.error?.message ?? 'unknown error' },
+        attempt: event.attempt ?? 0,
+      }
+    case 'cache.hit':
+      return {
+        source: 'ai-provider', type: 'cache.hit',
+        traceId, correlationId: event.correlationId,
+        timestamp: event.timestamp, durationMs: event.durationMs,
+        env, provider, model: event.model,
+        cache: { layer: 'app-cache', hit: true, hitRate: event.cacheStats?.hitRate },
+      }
+    default:
+      return null
+  }
+}
+
 export function emitEvent(event: AIEvent): void {
   const handler = (globalThis as GlobalWithHandler)[GLOBAL_KEY]
 
@@ -80,16 +116,25 @@ export function emitEvent(event: AIEvent): void {
     } catch (err) {
       console.error('[ai-provider] event handler threw:', err)
     }
-    return
-  }
-
-  // Default behaviour when no handler registered
-  if (process.env.NODE_ENV === 'production') {
+  } else if (process.env.NODE_ENV === 'production') {
     console.log(JSON.stringify({ source: 'ai-provider', ...event }))
   } else if (event.type === 'request.failure') {
     console.error(
       `[ai-provider] ${event.error?.code} after ${event.durationMs}ms ` +
       `(${event.provider}/${event.model}): ${event.error?.message}`
     )
+  }
+
+  // Always forward to ai-core's bus, regardless of whether a legacy
+  // handler is registered — this is what makes ai-provider's events
+  // visible to platform-wide subscribers (instrumentation.ts, the future
+  // live visualizer) alongside vector/retrieval events.
+  const platformEvent = toPlatformEvent(event)
+  if (platformEvent) {
+    try {
+      emit(platformEvent)
+    } catch (err) {
+      console.error('[ai-provider] failed to forward event to ai-core bus:', err)
+    }
   }
 }
