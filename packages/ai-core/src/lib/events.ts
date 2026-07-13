@@ -91,10 +91,18 @@ type CacheHitEvent = BaseEvent & {
 type VectorSearchEvent = BaseEvent & {
   source: 'vector'
   type: 'search.success' | 'search.empty'
-  table: string          // which domain's table — preferences_examples, nl2mongo_examples
+  table: string
   topK: number
-  returned: number       // actual results (may be < topK if store is sparse)
-  topScore?: number      // highest similarity score — signals retrieval quality
+  returned: number
+  topScore?: number
+}
+
+type VectorSearchFailureEvent = BaseEvent & {
+  source: 'vector'
+  type: 'search.failure'
+  table: string
+  topK: number
+  error: { code: AIErrorCode; message: string }
 }
 
 type VectorInsertEvent = BaseEvent & {
@@ -103,6 +111,20 @@ type VectorInsertEvent = BaseEvent & {
   table: string
   model: string
   dimensions: number
+}
+
+type VectorInsertFailureEvent = BaseEvent & {
+  source: 'vector'
+  type: 'insert.failure'
+  table: string
+  error: { code: AIErrorCode; message: string }
+}
+
+type VectorDeleteEvent = BaseEvent & {
+  source: 'vector'
+  type: 'delete.success' | 'delete.failure'
+  table: string
+  error?: { code: AIErrorCode; message: string }
 }
 
 // ── retrieval events ──────────────────────────────────────────────────────────
@@ -154,7 +176,10 @@ export type PlatformEvent =
   | EmbeddingFailureEvent
   | CacheHitEvent
   | VectorSearchEvent
+  | VectorSearchFailureEvent
   | VectorInsertEvent
+  | VectorInsertFailureEvent
+  | VectorDeleteEvent
   | RetrievalEvent
   | GuardrailEvent
   | AgentEvent
