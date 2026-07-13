@@ -126,3 +126,15 @@ export type VectorSearchResult = {
   entry: VectorEntry
   score: number            // similarity score 0-1 — higher = more similar
 }
+
+// ── VectorStore interface ─────────────────────────────────────────────────────
+// The generic contract every vector store implementation satisfies —
+// Atlas, Pinecone, Postgres+pgvector, an in-memory array for tests, anything.
+// @jz92/vector provides implementations; @jz92/retrieval and consuming apps
+// depend only on this shape, never on a specific backend.
+
+export type VectorStore = {
+  insert: (entry: VectorEntry, traceId?: string) => Promise<void>
+  search: (query: VectorQuery, traceId?: string) => Promise<VectorSearchResult[]>
+  delete: (id: string, traceId?: string) => Promise<void>
+}

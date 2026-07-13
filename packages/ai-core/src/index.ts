@@ -30,6 +30,7 @@ export type {
   VectorEntry,
   VectorQuery,
   VectorSearchResult,
+  VectorStore, 
 } from './lib/types.js'
 
 // ── Event bus ─────────────────────────────────────────────────────────────────
