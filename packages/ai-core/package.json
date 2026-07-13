@@ -26,7 +26,8 @@
     "tslib": "^2.3.0"
   },
   "scripts": {
-    "build": "tsc --build tsconfig.lib.json",
+     "build": "tsc --build tsconfig.lib.json",
+    "test": "npx tsx test/smoke.ts",
     "prepublishOnly": "npm run build"
   },
   "engines": {
@@ -40,5 +41,8 @@
     "security",
     "platform",
     "typescript"
-  ]
+  ],
+  "devDependencies": {
+    "tsx": "^4.23.1"
+  }
 }
