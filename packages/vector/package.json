@@ -19,7 +19,7 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@jz92/ai-core": "^0.1.3",
+    "@jz92/ai-core": "^0.1.4",
     "tslib": "^2.3.0"
   }
 }
