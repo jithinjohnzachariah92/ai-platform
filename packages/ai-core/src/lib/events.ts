@@ -134,7 +134,13 @@ type RetrievalEvent = BaseEvent & {
   type: 'retrieved' | 'quality.gate.passed' | 'quality.gate.failed'
   count?: number
   topScore?: number
-  reason?: string        // for quality.gate.failed — why it was rejected
+  reason?: string
+}
+
+type RetrievalStoreEvent = BaseEvent & {
+  source: 'retrieval'
+  type: 'store.success' | 'store.failure'
+  reason?: string        // for store.failure — what went wrong
 }
 
 // ── guardrail events ──────────────────────────────────────────────────────────
@@ -181,6 +187,7 @@ export type PlatformEvent =
   | VectorInsertFailureEvent
   | VectorDeleteEvent
   | RetrievalEvent
+  | RetrievalStoreEvent
   | GuardrailEvent
   | AgentEvent
   
