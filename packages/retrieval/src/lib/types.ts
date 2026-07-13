@@ -1,4 +1,15 @@
-import type { VectorStore, TraceContext } from '@jz92/ai-core'
+import type { VectorStore, TraceContext, EmbeddingProviderName } from '@jz92/ai-core'
+
+// ── Embed function ────────────────────────────────────────────────────────────
+// Injected rather than hard-imported from @jz92/ai-provider — keeps this
+// package testable in isolation (fake embedder, no API calls) and, in
+// principle, usable with any embedding source that satisfies this shape.
+
+export type EmbedFn = (
+  text: string,
+  inputType: 'query' | 'document',
+  traceId?: string
+) => Promise<{ embedding: number[]; model: string; provider: EmbeddingProviderName }>
 
 // ── RetrieverConfig ────────────────────────────────────────────────────────────
 // Everything domain-specific is injected here — nothing about preferences,
@@ -11,25 +22,13 @@ import type { VectorStore, TraceContext } from '@jz92/ai-core'
 
 export type RetrieverConfig<T> = {
   vectorStore: VectorStore
+  embed: EmbedFn
   topK: number
   formatExample: (input: string, output: T) => string
   parseOutput: (raw: string) => T
 
   // ── Guardrails (optional — default to no-op, matching pre-package behaviour) ─
-  // Both are proven necessary (tc-07 finding: score 0.629 caused a
-  // hallucination in the Preference Parser) but not yet tuned across a second
-  // domain. Defaulting to "off" means adopting this package changes nothing
-  // observable until you decide to tune these — a config change, not a code
-  // change, when you do.
-
-  // Minimum similarity score for an example to be injected at all.
-  // Default 0 = no filtering (every top-K result injected regardless of
-  // relevance — today's behaviour). Set e.g. 0.7 once tuned against real scores.
   minScore?: number
-
-  // Hard ceiling on total few-shot token overhead, regardless of example count.
-  // Default undefined = no budget (TOP_K alone bounds it — today's behaviour).
-  // Set e.g. 300 once you've observed example sizes growing.
   maxExampleTokens?: number
 }
 
