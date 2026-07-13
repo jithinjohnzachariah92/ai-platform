@@ -28,7 +28,7 @@
     "@ai-sdk/anthropic": "^4.0.12",
     "@ai-sdk/openai": "^4.0.11",
     "@ai-sdk/voyage": "^2.0.7",
-    "@jz92/ai-core": "^0.1.2",
+    "@jz92/ai-core": "^0.1.3",
     "ai": "^7.0.21",
     "tslib": "^2.3.0"
   },
