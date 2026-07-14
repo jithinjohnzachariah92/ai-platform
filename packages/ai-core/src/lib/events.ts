@@ -1,4 +1,11 @@
-import type { AIEnvironment, AIErrorCode, AIProviderName, EmbeddingProviderName, CacheContext, TraceContext } from './types.js'
+import type {
+  AIEnvironment,
+  AIErrorCode,
+  AIProviderName,
+  EmbeddingProviderName,
+  CacheContext,
+  TraceContext,
+} from './types.js';
 
 // ── Base event ────────────────────────────────────────────────────────────────
 // Every event across every package carries this. The traceId/userId fields
@@ -6,163 +13,186 @@ import type { AIEnvironment, AIErrorCode, AIProviderName, EmbeddingProviderName,
 
 type BaseEvent = {
   // Trace — who/what triggered this
-  traceId: string
-  correlationId?: string
-  userId?: string
-  sessionId?: string
+  traceId: string;
+  correlationId?: string;
+  userId?: string;
+  sessionId?: string;
 
   // What emitted this
-  source: 'ai-provider' | 'vector' | 'retrieval' | 'guardrails' | 'agents' | 'prompts' | 'evals'
-  type: string
+  source:
+    | 'ai-provider'
+    | 'vector'
+    | 'retrieval'
+    | 'guardrails'
+    | 'agents'
+    | 'prompts'
+    | 'evals';
+  type: string;
 
   // When + how long
-  timestamp: string      // ISO 8601
-  durationMs?: number
+  timestamp: string; // ISO 8601
+  durationMs?: number;
 
   // Where
-  env: AIEnvironment
-  packageVersion?: string  // which version of the package emitted this
+  env: AIEnvironment;
+  packageVersion?: string; // which version of the package emitted this
 
   // Cache state at time of event
-  cache?: CacheContext
-} & TraceContext
+  cache?: CacheContext;
+} & TraceContext;
 
 // ── ai-provider events ────────────────────────────────────────────────────────
 
 type CompletionSuccessEvent = BaseEvent & {
-  source: 'ai-provider'
-  type: 'completion.success'
-  provider: AIProviderName
-  model: string
+  source: 'ai-provider';
+  type: 'completion.success';
+  provider: AIProviderName;
+  model: string;
   usage: {
-    inputTokens: number
-    outputTokens: number
-    cacheReadTokens: number
-    cacheCreationTokens: number
-  }
-}
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheCreationTokens: number;
+  };
+};
 
 type CompletionFailureEvent = BaseEvent & {
-  source: 'ai-provider'
-  type: 'completion.failure'
-  provider: AIProviderName
-  model: string
-  error: { code: AIErrorCode; message: string }
-  attempt: number
-}
+  source: 'ai-provider';
+  type: 'completion.failure';
+  provider: AIProviderName;
+  model: string;
+  error: { code: AIErrorCode; message: string };
+  attempt: number;
+};
 
 type CompletionRetryEvent = BaseEvent & {
-  source: 'ai-provider'
-  type: 'completion.retry'
-  provider: AIProviderName
-  model: string
-  error: { code: AIErrorCode; message: string }
-  attempt: number
-}
+  source: 'ai-provider';
+  type: 'completion.retry';
+  provider: AIProviderName;
+  model: string;
+  error: { code: AIErrorCode; message: string };
+  attempt: number;
+};
 
 type EmbeddingSuccessEvent = BaseEvent & {
-  source: 'ai-provider'
-  type: 'embedding.success'
-  provider: EmbeddingProviderName
-  model: string
-  dimensions: number
-  inputTokens: number
-  batchSize?: number     // present on batch calls
-}
+  source: 'ai-provider';
+  type: 'embedding.success';
+  provider: EmbeddingProviderName;
+  model: string;
+  dimensions: number;
+  inputTokens: number;
+  batchSize?: number; // present on batch calls
+};
 
 type EmbeddingFailureEvent = BaseEvent & {
-  source: 'ai-provider'
-  type: 'embedding.failure'
-  provider: EmbeddingProviderName
-  model: string
-  error: { code: AIErrorCode; message: string }
-}
+  source: 'ai-provider';
+  type: 'embedding.failure';
+  provider: EmbeddingProviderName;
+  model: string;
+  error: { code: AIErrorCode; message: string };
+};
 
-type CacheHitEvent = BaseEvent & {
-  source: 'ai-provider'
-  type: 'cache.hit'
-  provider: AIProviderName | EmbeddingProviderName
-  model: string
-  cache: CacheContext
-}
+type CompletionCacheHitEvent = BaseEvent & {
+  source: 'ai-provider';
+  type: 'completion.cache.hit';
+  provider: AIProviderName;
+  model: string;
+  cache: CacheContext;
+};
 
+type EmbeddingCacheHitEvent = BaseEvent & {
+  source: 'ai-provider';
+  type: 'embedding.cache.hit';
+  provider: EmbeddingProviderName;
+  model: string;
+  cache: CacheContext;
+};
 // ── vector events ─────────────────────────────────────────────────────────────
 
 type VectorSearchEvent = BaseEvent & {
-  source: 'vector'
-  type: 'search.success' | 'search.empty'
-  table: string
-  topK: number
-  returned: number
-  topScore?: number
-}
+  source: 'vector';
+  type: 'search.success' | 'search.empty';
+  table: string;
+  topK: number;
+  returned: number;
+  topScore?: number;
+};
 
 type VectorSearchFailureEvent = BaseEvent & {
-  source: 'vector'
-  type: 'search.failure'
-  table: string
-  topK: number
-  error: { code: AIErrorCode; message: string }
-}
+  source: 'vector';
+  type: 'search.failure';
+  table: string;
+  topK: number;
+  error: { code: AIErrorCode; message: string };
+};
 
 type VectorInsertEvent = BaseEvent & {
-  source: 'vector'
-  type: 'insert.success'
-  table: string
-  model: string
-  dimensions: number
-}
+  source: 'vector';
+  type: 'insert.success';
+  table: string;
+  model: string;
+  dimensions: number;
+};
 
 type VectorInsertFailureEvent = BaseEvent & {
-  source: 'vector'
-  type: 'insert.failure'
-  table: string
-  error: { code: AIErrorCode; message: string }
-}
+  source: 'vector';
+  type: 'insert.failure';
+  table: string;
+  error: { code: AIErrorCode; message: string };
+};
 
 type VectorDeleteEvent = BaseEvent & {
-  source: 'vector'
-  type: 'delete.success' | 'delete.failure'
-  table: string
-  error?: { code: AIErrorCode; message: string }
-}
+  source: 'vector';
+  type: 'delete.success' | 'delete.failure';
+  table: string;
+  error?: { code: AIErrorCode; message: string };
+};
 
 // ── retrieval events ──────────────────────────────────────────────────────────
 
 type RetrievalEvent = BaseEvent & {
-  source: 'retrieval'
-  type: 'retrieved' | 'quality.gate.passed' | 'quality.gate.failed'
-  count?: number
-  topScore?: number
-  reason?: string
-}
+  source: 'retrieval';
+  type: 'retrieved' | 'quality.gate.passed' | 'quality.gate.failed';
+  count?: number;
+  topScore?: number;
+  reason?: string;
+};
 
 type RetrievalStoreEvent = BaseEvent & {
-  source: 'retrieval'
-  type: 'store.success' | 'store.failure'
-  reason?: string        // for store.failure — what went wrong
-}
+  source: 'retrieval';
+  type: 'store.success' | 'store.failure';
+  reason?: string; // for store.failure — what went wrong
+};
 
 // ── guardrail events ──────────────────────────────────────────────────────────
 // Emitted from domain code (not a platform package) — but typed here so the
 // subscriber gets a consistent shape regardless of which domain emitted it.
 
 type GuardrailEvent = BaseEvent & {
-  source: 'guardrails'
-  type: 'hallucination.dropped' | 'empty.result' | 'low.confidence' | 'input.rejected'
-  items?: string[]       // what was dropped or flagged
-  reason?: string
-}
+  source: 'guardrails';
+  type:
+    | 'hallucination.dropped'
+    | 'empty.result'
+    | 'low.confidence'
+    | 'input.rejected';
+  items?: string[]; // what was dropped or flagged
+  reason?: string;
+};
 
 // ── agent events ──────────────────────────────────────────────────────────────
 
 type AgentEvent = BaseEvent & {
-  source: 'agents'
-  type: 'step.start' | 'step.complete' | 'plan.created' | 'loop.complete' | 'loop.failed'
-  step?: string
-  totalSteps?: number
-  attempt?: number
-}
+  source: 'agents';
+  type:
+    | 'step.start'
+    | 'step.complete'
+    | 'plan.created'
+    | 'loop.complete'
+    | 'loop.failed';
+  step?: string;
+  totalSteps?: number;
+  attempt?: number;
+};
 
 // ── The discriminated union ───────────────────────────────────────────────────
 // The subscriber receives one of these. TypeScript narrows the type based on
@@ -180,7 +210,8 @@ export type PlatformEvent =
   | CompletionRetryEvent
   | EmbeddingSuccessEvent
   | EmbeddingFailureEvent
-  | CacheHitEvent
+  | CompletionCacheHitEvent
+  | EmbeddingCacheHitEvent
   | VectorSearchEvent
   | VectorSearchFailureEvent
   | VectorInsertEvent
@@ -189,9 +220,9 @@ export type PlatformEvent =
   | RetrievalEvent
   | RetrievalStoreEvent
   | GuardrailEvent
-  | AgentEvent
-  
-type Subscriber = (event: PlatformEvent) => void
+  | AgentEvent;
+
+type Subscriber = (event: PlatformEvent) => void;
 
 // ── Event bus ─────────────────────────────────────────────────────────────────
 // Uses globalThis rather than a module-level variable. Bundlers (Next.js,
@@ -202,33 +233,37 @@ type Subscriber = (event: PlatformEvent) => void
 // globalThis is shared across all bundles in the same process, so this
 // guarantees one true singleton bus regardless of how the bundler splits code.
 
-const GLOBAL_KEY = '__jz92AiCoreSubscribers__'
+const GLOBAL_KEY = '__jz92AiCoreSubscribers__';
 
 type GlobalWithSubscribers = typeof globalThis & {
-  [GLOBAL_KEY]?: Subscriber[]
-}
+  [GLOBAL_KEY]?: Subscriber[];
+};
 
 const getSubscribers = (): Subscriber[] => {
-  const g = globalThis as GlobalWithSubscribers
-  if (!g[GLOBAL_KEY]) g[GLOBAL_KEY] = []
-  return g[GLOBAL_KEY]
-}
+  const g = globalThis as GlobalWithSubscribers;
+  if (!g[GLOBAL_KEY]) g[GLOBAL_KEY] = [];
+  return g[GLOBAL_KEY];
+};
 
 export const emit = (event: PlatformEvent): void => {
   for (const sub of getSubscribers()) {
-    try { sub(event) } catch { /* never let a subscriber crash the request */ }
+    try {
+      sub(event);
+    } catch {
+      /* never let a subscriber crash the request */
+    }
   }
-}
+};
 
 export const onEvent = (subscriber: Subscriber): (() => void) => {
-  const subs = getSubscribers()
-  subs.push(subscriber)
+  const subs = getSubscribers();
+  subs.push(subscriber);
   return () => {
-    const g = globalThis as GlobalWithSubscribers
-    g[GLOBAL_KEY] = getSubscribers().filter(s => s !== subscriber)
-  }
-}
+    const g = globalThis as GlobalWithSubscribers;
+    g[GLOBAL_KEY] = getSubscribers().filter((s) => s !== subscriber);
+  };
+};
 
 export const clearSubscribers = (): void => {
-  (globalThis as GlobalWithSubscribers)[GLOBAL_KEY] = []
-}
+  (globalThis as GlobalWithSubscribers)[GLOBAL_KEY] = [];
+};
