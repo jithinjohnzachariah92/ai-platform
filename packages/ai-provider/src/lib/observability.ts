@@ -96,7 +96,7 @@ const toPlatformEvent = (event: AIEvent): PlatformEvent | null => {
       }
     case 'cache.hit':
       return {
-        source: 'ai-provider', type: 'cache.hit',
+        source: 'ai-provider', type: 'completion.cache.hit',
         traceId, correlationId: event.correlationId,
         timestamp: event.timestamp, durationMs: event.durationMs,
         env, provider, model: event.model,

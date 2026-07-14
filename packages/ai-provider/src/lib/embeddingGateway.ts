@@ -50,7 +50,7 @@ export const generateEmbedding = async (
   if (cached) {
     emit({
       source: 'ai-provider',
-      type: 'cache.hit',
+      type: 'embedding.cache.hit',
       traceId,
       correlationId,
       userId,

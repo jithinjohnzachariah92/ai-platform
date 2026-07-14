@@ -367,6 +367,37 @@ try {
   log(false, 'Anthropic prompt-cache', String(err));
 }
 
+console.log('\nai-core bus — cache hit type split');
+try {
+  const { onEvent, clearSubscribers } = await import('@jz92/ai-core');
+  clearSubscribers();
+  const captured: any[] = [];
+  const unsubscribe = onEvent((e) => captured.push(e));
+
+  await generatePlainText({
+    systemPrompt: 'You are a helpful assistant. One word answers.',
+    prompt: 'cache split test',
+    cacheKey: 'cache-split-test',
+    traceId: 'cache-split-trace',
+  });
+  await generatePlainText({
+    systemPrompt: 'You are a helpful assistant. One word answers.',
+    prompt: 'cache split test',
+    cacheKey: 'cache-split-test',
+    traceId: 'cache-split-trace',
+  });
+
+  const hasNewType = captured.some((e) => e.type === 'completion.cache.hit');
+  const hasOldType = captured.some((e) => e.type === 'cache.hit');
+  log(hasNewType, 'ai-core bus emits completion.cache.hit (not legacy cache.hit)');
+  log(!hasOldType, 'ai-core bus never emits the old unified cache.hit type');
+
+  unsubscribe();
+  clearSubscribers();
+} catch (err) {
+  log(false, 'ai-core bus cache hit split', String(err));
+}
+
 // ── Embedding capability ──────────────────────────────────────────────────────
 console.log('\nEmbedding capability');
 try {
@@ -445,6 +476,7 @@ try {
 } catch (err) {
   log(false, 'embedding capability', String(err));
 }
+
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(40)}`);
