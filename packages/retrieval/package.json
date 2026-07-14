@@ -6,10 +6,10 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-  "build": "tsc --build tsconfig.lib.json",
-  "test": "npx tsx test/smoke.ts",
-  "prepublishOnly": "npm run build"
-},
+    "build": "tsc --build tsconfig.lib.json",
+    "test": "npx tsx test/smoke.ts",
+    "prepublishOnly": "npm run build"
+  },
   "exports": {
     "./package.json": "./package.json",
     ".": {
@@ -24,7 +24,7 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@jz92/ai-core": "^0.1.5",
+    "@jz92/ai-core": "^0.1.6",
     "tslib": "^2.3.0"
   },
   "devDependencies": {

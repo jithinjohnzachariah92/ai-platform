@@ -26,7 +26,6 @@ export const generateStructured = async <T>(
 ): Promise<AIResponse<T>> => {
   const config = resolveProvider()
 
-  // Cache check — emit a cache.hit event so cache effectiveness is observable
   const cached = responseCache.get<T>(options.cacheKey ?? '')
   if (cached && options.cacheKey) {
     emitEvent({
@@ -35,14 +34,13 @@ export const generateStructured = async <T>(
       provider: config.provider,
       model: config.model,
       env: config.env,
-      correlationId: options.correlationId,
-      cacheStats: responseCache.getStats(), 
+      correlationId: options.traceId,
+      cacheStats: responseCache.getStats(),
     })
-    logCacheHitBox(config, responseCache.getStats())   // terminal visibility
+    logCacheHitBox(config, responseCache.getStats())
     return { data: cached, provider: config.provider, model: config.model, fromCache: true }
   }
 
-    // Guard against prompt injection before hitting the model
   assertSafeInput(options.prompt, 'prompt')
   assertSafeInput(options.systemPrompt, 'systemPrompt')
 
@@ -53,8 +51,6 @@ export const generateStructured = async <T>(
 
   const result = await execute(
     async () => {
-      // buildModel runs inside execute so connectivity/auth errors are
-      // captured by the instrumented error handling and emit failure events
       const model = await buildModel(config)
       return generateText({
         model, system, messages,
@@ -62,11 +58,12 @@ export const generateStructured = async <T>(
         maxOutputTokens: config.maxTokens,
       })
     },
-    config, timeout, options.correlationId
+    config, timeout, options.traceId
   )
 
   return buildResponse(result.output as T, result.usage, config, options.cacheKey)
 }
+
 
 export async function generatePlainText(
   options: Omit<AIRequestOptions, 'schema'>
@@ -81,7 +78,7 @@ export async function generatePlainText(
       provider: config.provider,
       model: config.model,
       env: config.env,
-      correlationId: options.correlationId,
+      correlationId: options.traceId,
     })
     return { data: cached, provider: config.provider, model: config.model, fromCache: true }
   }
@@ -96,7 +93,7 @@ export async function generatePlainText(
       const model = await buildModel(config)
       return generateText({ model, system, messages, maxOutputTokens: config.maxTokens })
     },
-    config, timeout, options.correlationId
+    config, timeout, options.traceId
   )
 
   return buildResponse(result.text, result.usage, config, options.cacheKey)
@@ -110,7 +107,7 @@ async function execute<T>(
   fn: () => Promise<T>,
   config: ProviderConfig,
   timeoutMs: number,
-  correlationId?: string
+  traceId?: string
 ): Promise<T> {
   const start = Date.now()
   let lastError: AIProviderError | undefined
@@ -119,9 +116,6 @@ async function execute<T>(
     try {
       const result = await withTimeout(fn, timeoutMs)
 
-      // Success — emit event with timing. Usage detail is added by the caller
-      // via buildResponse, but the success signal + duration live here where
-      // we have the timing context.
       emitEvent({
         type: 'request.success',
         timestamp: new Date().toISOString(),
@@ -130,7 +124,7 @@ async function execute<T>(
         env: config.env,
         durationMs: Date.now() - start,
         usage: extractUsage(result),
-        correlationId,
+        correlationId: traceId,
       })
       return result
 
@@ -146,7 +140,7 @@ async function execute<T>(
           env: config.env,
           durationMs: Date.now() - start,
           error: { code: wrapped.code, message: scrubSecrets(wrapped.message) },
-          correlationId,
+          correlationId: traceId,
         })
         throw wrapped
       }
@@ -164,14 +158,13 @@ async function execute<T>(
           durationMs: Date.now() - start,
           attempt: attempt + 1,
           error: { code: wrapped.code, message: scrubSecrets(wrapped.message) },
-          correlationId,
+          correlationId: traceId,
         })
         await new Promise<void>(r => setTimeout(r, backoff))
       }
     }
   }
 
-  // All retries exhausted
   emitEvent({
     type: 'request.failure',
     timestamp: new Date().toISOString(),
@@ -180,7 +173,7 @@ async function execute<T>(
     env: config.env,
     durationMs: Date.now() - start,
     error: lastError ? { code: lastError.code, message: scrubSecrets(lastError.message) } : { code: 'UNKNOWN', message: 'exhausted retries' },
-    correlationId,
+    correlationId: traceId,
   })
   throw lastError
 }

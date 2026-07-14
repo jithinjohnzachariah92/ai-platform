@@ -158,23 +158,20 @@ try {
   const { onAIEvent } = await import('../src/lib/index.js');
   const captured: any[] = [];
   onAIEvent((event) => captured.push(event));
-
   await generatePlainText({
     systemPrompt: 'You are a helpful assistant. One word answers.',
     prompt: 'Say hello',
-    correlationId: 'test-correlation-123',
+    traceId: 'test-correlation-123',
   });
-
   const successEvent = captured.find((e) => e.type === 'request.success');
   log(successEvent !== undefined, 'emits request.success event');
   log(
     successEvent?.correlationId === 'test-correlation-123',
-    'event carries correlationId',
+    'event carries traceId (via correlationId field)',
   );
   log(typeof successEvent?.durationMs === 'number', 'event has durationMs');
   log(successEvent?.provider === 'ollama', 'event has provider');
-
-  onAIEvent(() => {}); // reset
+  onAIEvent(() => {});
 } catch (err) {
   log(false, 'observability events', String(err));
 }
@@ -341,13 +338,13 @@ try {
       ...base,
       prompt: 'Alex from London',
       cacheKey: 'anthropic:1',
-      correlationId: 'a1',
+      traceId: 'a1',
     });
     await generateStructured({
       ...base,
       prompt: 'Sam from Bristol',
       cacheKey: 'anthropic:2',
-      correlationId: 'a2',
+      traceId: 'a2',
     });
 
     const successes = captured.filter((e) => e.type === 'request.success');

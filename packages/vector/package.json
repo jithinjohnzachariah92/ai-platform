@@ -24,7 +24,7 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@jz92/ai-core": "^0.1.4",
+    "@jz92/ai-core": "^0.1.6",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
