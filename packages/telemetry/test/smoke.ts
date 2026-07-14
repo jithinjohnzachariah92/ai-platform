@@ -122,6 +122,31 @@ console.log('\nevents without traceId')
   log(lines.length === 0, 'events with empty traceId are not buffered')
 }
 
+// ── nested composite grouping ──────────────────────────────────────────────────
+console.log('\nnested composite grouping')
+{
+  clearSubscribers()
+  _resetTelemetryState()
+  attachTraceSummary()
+
+  emit(fakeEvent({ traceId: 'trace-nest', source: 'retrieval', type: 'retrieved', durationMs: 500 } as any))
+  emit(fakeEvent({ traceId: 'trace-nest', source: 'ai-provider', type: 'embedding.success', durationMs: 400 } as any))
+  emit(fakeEvent({ traceId: 'trace-nest', source: 'vector', type: 'search.success', durationMs: 60 } as any))
+  emit(fakeEvent({ traceId: 'trace-nest', source: 'ai-provider', type: 'completion.success', durationMs: 8000 } as any))
+
+  const lines = await captureConsole(() => printTraceSummary('trace-nest'))
+
+  log(lines.some(l => l.includes('retrieval')), 'parent stage (retrieval) is shown')
+  log(lines.some(l => l.includes('embed text')), 'child (embed text) is shown nested')
+  log(lines.some(l => l.includes('vector search')), 'child (vector search) is shown nested')
+  log(lines.some(l => l.includes('llm completion')), 'sibling top-level stage (llm completion) is shown')
+
+  // Percentage should be computed over top-level only (500 + 8000 = 8500),
+  // not inflated by double-counting the 400+60ms children.
+  const retrievalLine = lines.find(l => l.includes('retrieval') && l.includes('%'))
+  log(retrievalLine?.includes('(6%)') ?? false, 'retrieval percentage computed from top-level total only (500/8500 ≈ 6%)')
+}
+
 // ── Summary ────────────────────────────────────────────────────────────────────
 console.log('\n────────────────────────────────────────')
 console.log(`  ${passed} passed  ${failed > 0 ? `${failed} failed` : ''}`)

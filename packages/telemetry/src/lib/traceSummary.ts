@@ -1,31 +1,47 @@
 import { onEvent } from '@jz92/ai-core'
 import type { PlatformEvent } from '@jz92/ai-core'
 
-// ── Default stage labels ──────────────────────────────────────────────────────
-// Covers every event type the platform currently emits. Apps can extend or
-// override via attachTraceSummary({ labels: {...} }) without needing to fork
-// this package — e.g. once @jz92/agents exists and emits 'agents.step.start'.
+// ── Stage hierarchy ────────────────────────────────────────────────────────────
+// Some events are composites that already include others' time (e.g.
+// retrieval.retrieved wraps ai-provider.embedding.success + vector.search.success).
+// Composites are shown as parent rows with their known children in a nested
+// box — children are NOT counted toward the total-percentage math, since
+// that's computed only over genuinely additive, non-overlapping top-level costs.
 
-const DEFAULT_LABELS: Record<string, string> = {
-  'ai-provider.completion.success': 'llm completion',
-  'ai-provider.completion.failure': 'llm completion (failed)',
-  'ai-provider.completion.retry':   'llm completion (retry)',
-  'ai-provider.embedding.success':  'embed text',
-  'ai-provider.embedding.failure':  'embed text (failed)',
-  'ai-provider.completion.cache.hit': 'completion cache hit',
-  'ai-provider.embedding.cache.hit':  'embedding cache hit',
-  'vector.search.success':          'vector search',
-  'vector.search.empty':            'vector search (empty)',
-  'vector.search.failure':          'vector search (failed)',
-  'vector.insert.success':          'vector insert',
-  'vector.insert.failure':          'vector insert (failed)',
-  'vector.delete.success':          'vector delete',
-  'vector.delete.failure':          'vector delete (failed)',
-  'retrieval.retrieved':            'retrieval (embed+search+format)',
-  'retrieval.quality.gate.passed':  'quality gate',
-  'retrieval.quality.gate.failed':  'quality gate (rejected)',
-  'retrieval.store.success':        'store example',
-  'retrieval.store.failure':        'store example (failed)',
+type StageNode = {
+  key: string
+  label: string
+  children?: string[]
+}
+
+
+const STAGE_HIERARCHY: StageNode[] = [
+  {
+    key: 'retrieval.retrieved',
+    label: 'retrieval',
+    children: ['ai-provider.embedding.success', 'vector.search.success', 'vector.search.empty'],
+  },
+  { key: 'ai-provider.completion.success', label: 'llm completion' },
+  { key: 'retrieval.quality.gate.passed', label: 'quality gate' },
+  { key: 'retrieval.quality.gate.failed', label: 'quality gate (rejected)' },
+  {
+    key: 'retrieval.store.success',
+    label: 'store example',
+    children: ['ai-provider.embedding.success', 'vector.insert.success'],
+  },
+  { key: 'retrieval.store.failure', label: 'store example (failed)' },
+  { key: 'ai-provider.completion.cache.hit', label: 'completion cache hit' },
+  { key: 'ai-provider.embedding.cache.hit', label: 'embedding cache hit' },
+]
+
+const CHILD_LABELS: Record<string, string> = {
+  'ai-provider.embedding.success': 'embed text',
+  'ai-provider.embedding.failure': 'embed text (failed)',
+  'vector.search.success':         'vector search',
+  'vector.search.empty':           'vector search (empty)',
+  'vector.search.failure':         'vector search (failed)',
+  'vector.insert.success':         'vector insert',
+  'vector.insert.failure':         'vector insert (failed)',
 }
 
 export type TraceSummaryConfig = {
@@ -81,32 +97,69 @@ export const printTraceSummary = (traceId: string): void => {
   buffers.delete(traceId)
   if (!buf || buf.events.length === 0) return
 
-  const labels = { ...DEFAULT_LABELS, ...activeConfig.labels }
   const sorted = [...buf.events].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
-
   const firstStart = new Date(sorted[0].timestamp).getTime()
   const last = sorted[sorted.length - 1]
   const lastEnd = new Date(last.timestamp).getTime() + (last.durationMs ?? 0)
   const totalMs = Math.max(0, lastEnd - firstStart)
 
-  const stages = sorted
-    .map((e) => ({ key: `${e.source}.${e.type}`, ms: e.durationMs ?? 0 }))
-    .filter((s) => labels[s.key] !== undefined)
-    .map((s) => ({ label: labels[s.key], ms: s.ms }))
+  const byKey = new Map<string, PlatformEvent[]>()
+  for (const e of sorted) {
+    const key = `${e.source}.${e.type}`
+    const arr = byKey.get(key) ?? []
+    arr.push(e)
+    byKey.set(key, arr)
+  }
 
-  const width = 45
+  const consumedAsChild = new Set<string>()
+  const rows: { label: string; ms: number; indent: boolean }[] = []
+
+  for (const node of STAGE_HIERARCHY) {
+    const events = byKey.get(node.key)
+    if (!events) continue
+
+    for (const e of events) {
+      rows.push({ label: node.label, ms: e.durationMs ?? 0, indent: false })
+
+      for (const childKey of node.children ?? []) {
+        const childEvents = byKey.get(childKey)
+        if (!childEvents) continue
+        consumedAsChild.add(childKey)
+        for (const ce of childEvents) {
+          rows.push({ label: CHILD_LABELS[childKey] ?? childKey, ms: ce.durationMs ?? 0, indent: true })
+        }
+      }
+    }
+  }
+
+  // Any event key not covered by the hierarchy at all (unknown/future event
+  // types) still shows up as a top-level row — nothing is silently dropped.
+  for (const [key, events] of byKey) {
+    if (consumedAsChild.has(key)) continue
+    if (STAGE_HIERARCHY.some(n => n.key === key)) continue
+    for (const e of events) {
+      rows.push({ label: activeConfig.labels?.[key] ?? key, ms: e.durationMs ?? 0, indent: false })
+    }
+  }
+
+  // Percentage is computed only over top-level (non-indented) rows, since
+  // those are the genuinely additive, non-overlapping costs.
+  const topLevelTotal = rows.filter(r => !r.indent).reduce((sum, r) => sum + r.ms, 0)
+
+  const width = 47
   const bar = (c: string) => `[trace] ${c}${'─'.repeat(width)}${c === '┌' ? '┐' : '┘'}`
-  const line = (l: string, v: string) => {
-    const content = `  ${l.padEnd(26)} ${v}`
+  const line = (l: string, v: string, indent: boolean) => {
+    const prefix = indent ? '  ↳ ' : '  '
+    const content = `${prefix}${l.padEnd(indent ? 24 : 26)} ${v}`
     const pad = width - content.length - 1
     return `[trace] │${content}${' '.repeat(Math.max(0, pad))}│`
   }
 
   console.log(bar('┌'))
-  console.log(line('total', `${totalMs}ms`))
-  for (const s of stages) {
-    const pct = totalMs > 0 ? Math.round((s.ms / totalMs) * 100) : 0
-    console.log(line(s.label, `${s.ms}ms (${pct}%)`))
+  console.log(line('total', `${totalMs}ms`, false))
+  for (const r of rows) {
+    const pct = !r.indent && topLevelTotal > 0 ? ` (${Math.round((r.ms / topLevelTotal) * 100)}%)` : ''
+    console.log(line(r.label, `${r.ms}ms${pct}`, r.indent))
   }
   console.log(bar('└'))
 }
