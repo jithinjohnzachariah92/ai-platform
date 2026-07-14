@@ -191,34 +191,44 @@ export type PlatformEvent =
   | GuardrailEvent
   | AgentEvent
   
-// ── Event bus ─────────────────────────────────────────────────────────────────
-// A minimal pub/sub mechanism. Zero external dependencies — just an array of
-// subscribers. Every @jz92/* package calls emit(); the application subscribes
-// once and gets the full lifecycle of every request across all layers.
-//
-// Design decisions:
-//   - Module-level singleton: one bus per process, shared across all packages
-//   - Subscriber errors are swallowed: a broken logger never crashes a request
-//   - onEvent returns an unsubscribe fn: important for test cleanup
-
 type Subscriber = (event: PlatformEvent) => void
 
-let subscribers: Subscriber[] = []
+// ── Event bus ─────────────────────────────────────────────────────────────────
+// Uses globalThis rather than a module-level variable. Bundlers (Next.js,
+// Turbopack, webpack) can load this module in separate bundle contexts —
+// e.g. the instrumentation runtime vs an API route — each getting its own
+// module scope with its own copy of `subscribers`. A module-level array
+// would silently split into two buses that never see each other's events.
+// globalThis is shared across all bundles in the same process, so this
+// guarantees one true singleton bus regardless of how the bundler splits code.
+
+const GLOBAL_KEY = '__jz92AiCoreSubscribers__'
+
+type GlobalWithSubscribers = typeof globalThis & {
+  [GLOBAL_KEY]?: Subscriber[]
+}
+
+const getSubscribers = (): Subscriber[] => {
+  const g = globalThis as GlobalWithSubscribers
+  if (!g[GLOBAL_KEY]) g[GLOBAL_KEY] = []
+  return g[GLOBAL_KEY]
+}
 
 export const emit = (event: PlatformEvent): void => {
-  for (const sub of subscribers) {
+  for (const sub of getSubscribers()) {
     try { sub(event) } catch { /* never let a subscriber crash the request */ }
   }
 }
 
 export const onEvent = (subscriber: Subscriber): (() => void) => {
-  subscribers.push(subscriber)
+  const subs = getSubscribers()
+  subs.push(subscriber)
   return () => {
-    subscribers = subscribers.filter(s => s !== subscriber)
+    const g = globalThis as GlobalWithSubscribers
+    g[GLOBAL_KEY] = getSubscribers().filter(s => s !== subscriber)
   }
 }
 
 export const clearSubscribers = (): void => {
-  subscribers = []   // for test cleanup — avoids subscriber bleed between tests
+  (globalThis as GlobalWithSubscribers)[GLOBAL_KEY] = []
 }
-
