@@ -21,12 +21,12 @@ export type EmbedFn = (
 // Both are plain structured objects serialisable to JSON — the shape holds.
 
 export type RetrieverConfig<T> = {
+  domain: string   // stamped onto every emitted event — e.g. 'preference-parser', 'nl2mongo'
   vectorStore: VectorStore
   embed: EmbedFn
   topK: number
   formatExample: (input: string, output: T) => string
   parseOutput: (raw: string) => T
-
   // ── Guardrails (optional — default to no-op, matching pre-package behaviour) ─
   minScore?: number
   maxExampleTokens?: number
