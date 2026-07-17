@@ -151,18 +151,20 @@ type VectorDeleteEvent = BaseEvent & {
 // ── retrieval events ──────────────────────────────────────────────────────────
 
 type RetrievalEvent = BaseEvent & {
-  source: 'retrieval';
-  type: 'retrieved' | 'quality.gate.passed' | 'quality.gate.failed';
-  count?: number;
-  topScore?: number;
-  reason?: string;
-};
+  source: 'retrieval'
+  type: 'retrieved' | 'quality.gate.passed' | 'quality.gate.failed'
+  domain: string
+  count?: number
+  topScore?: number
+  reason?: string
+}
 
 type RetrievalStoreEvent = BaseEvent & {
-  source: 'retrieval';
-  type: 'store.success' | 'store.failure';
-  reason?: string; // for store.failure — what went wrong
-};
+  source: 'retrieval'
+  type: 'store.success' | 'store.failure'
+  domain: string
+  reason?: string
+}
 
 // ── guardrail events ──────────────────────────────────────────────────────────
 // Emitted from domain code (not a platform package) — but typed here so the
