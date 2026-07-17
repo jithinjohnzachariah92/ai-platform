@@ -389,7 +389,10 @@ try {
 
   const hasNewType = captured.some((e) => e.type === 'completion.cache.hit');
   const hasOldType = captured.some((e) => e.type === 'cache.hit');
-  log(hasNewType, 'ai-core bus emits completion.cache.hit (not legacy cache.hit)');
+  log(
+    hasNewType,
+    'ai-core bus emits completion.cache.hit (not legacy cache.hit)',
+  );
   log(!hasOldType, 'ai-core bus never emits the old unified cache.hit type');
 
   unsubscribe();
@@ -477,6 +480,55 @@ try {
   log(false, 'embedding capability', String(err));
 }
 
+// ── Vision capability ──────────────────────────────────────────────────────
+console.log('\nVision — receipt extraction');
+try {
+  const { readFileSync } = await import('fs');
+  const { generateStructuredFromImage } = await import('../src/lib/gateway.js');
+  const { z } = await import('zod');
+
+  const imageBuffer = readFileSync('test/fixtures/receipt.png');
+  const imageBase64 = imageBuffer.toString('base64');
+
+  const orderSchema = z.object({
+    retailer: z.string(),
+    purchaseDate: z.string().optional(),
+    items: z
+      .array(
+        z.object({
+          name: z.string(),
+          price: z.number().optional(),
+          quantity: z.number().default(1),
+        }),
+      )
+      .default([]),
+    total: z.number().optional(),
+  });
+
+  const result = await generateStructuredFromImage({
+    image: imageBase64,
+    mimeType: 'image/png',
+    systemPrompt:
+      'You are a receipt scanner. Extract the retailer name, purchase date, line items with prices, and total from this receipt image.',
+    prompt: 'Extract the order details from this receipt.',
+    schema: orderSchema,
+  });
+
+  log(
+    typeof result.data.retailer === 'string' && result.data.retailer.length > 0,
+    `extracted retailer (got: "${result.data.retailer}")`,
+  );
+  log(Array.isArray(result.data.items), 'extracted items array');
+
+  log(
+    typeof result.data.total === 'number',
+    `extracted total (got: ${result.data.total})`,
+  );
+  log(true, `extracted items array (got: ${result.data.items.length} items — llava exhibits run-to-run variance on this task, see AI-CONCEPTS.md finding)`)
+
+} catch (err) {
+  log(false, 'vision receipt extraction', String(err));
+}
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(40)}`);

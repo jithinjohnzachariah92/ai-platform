@@ -42,7 +42,7 @@ export function resolveProvider(): ProviderConfig {
   }
 }
 
-function resolveEnvironment(): AIEnvironment {
+export function resolveEnvironment(): AIEnvironment {
   const raw = process.env.NODE_ENV
   if (raw === 'test') return 'test'
   if (raw === 'production') return 'production'

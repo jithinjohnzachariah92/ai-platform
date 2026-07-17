@@ -42,3 +42,6 @@ export { generateEmbedding, generateEmbeddingBatch } from './lib/embeddingGatewa
 export { resolveEmbeddingProvider } from './lib/embeddingProvider.js'
 export type { EmbeddingProviderConfig } from './lib/embeddingProvider.js'
 export type { EmbeddingInputType } from './lib/embeddingClient.js'
+
+export { generateStructuredFromImage } from './lib/gateway.js'
+export { resolveVisionProvider } from './lib/visionProvider.js'
