@@ -66,7 +66,7 @@ function buildCloudVisionConfig(
       modelOverride ??
       defaults[provider]?.[isTest ? 'test' : 'production'] ??
       'claude-sonnet-4-6',
-    maxTokens: isTest ? 512 : 1024,
+    maxTokens: provider === 'google' ? 4096 : isTest ? 512 : 1024,
     usePromptCache: false, // images aren't cached the same way; keep simple for now
     env,
   };

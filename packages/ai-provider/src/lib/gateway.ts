@@ -441,7 +441,7 @@ export const generateStructuredFromImage = async <T>(options: {
   const result = await execute(
     async () => {
       const model = await buildModel(config);
-      return generateText({
+      const raw = await generateText({
         model,
         system: options.systemPrompt,
         messages: [
@@ -459,7 +459,12 @@ export const generateStructuredFromImage = async <T>(options: {
         ],
         output: Output.object({ schema: options.schema }),
         maxOutputTokens: config.maxTokens,
+        providerOptions:
+          config.provider === 'google'
+            ? { google: { thinkingConfig: { thinkingBudget: 0 } } }
+            : undefined,
       });
+      return { output: raw.output as T, usage: raw.usage };
     },
     config,
     timeout,

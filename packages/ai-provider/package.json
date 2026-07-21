@@ -1,6 +1,6 @@
 {
   "name": "@jz92/ai-provider",
-  "version": "0.9.0",
+  "version": "0.9.3",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
