@@ -1,6 +1,6 @@
-import { resolveEnvironment } from './provider.js'
-import type { ProviderConfig } from './types.js'
-import type { AIProviderName, AIEnvironment } from '@jz92/ai-core'
+import { resolveEnvironment } from './provider.js';
+import type { ProviderConfig } from './types.js';
+import type { AIProviderName, AIEnvironment } from '@jz92/ai-core';
 
 // ── resolveVisionProvider ─────────────────────────────────────────────────────
 // Mirrors resolveProvider() exactly, but the Ollama default is a vision-capable
@@ -10,21 +10,26 @@ import type { AIProviderName, AIEnvironment } from '@jz92/ai-core'
 // there.
 
 export function resolveVisionProvider(): ProviderConfig {
-  const env = resolveEnvironment()
-  const providerOverride = process.env.AI_VISION_PROVIDER as AIProviderName | undefined
-  const modelOverride = process.env.AI_VISION_MODEL
+  const env = resolveEnvironment();
+  const providerOverride = process.env.AI_VISION_PROVIDER as
+    | AIProviderName
+    | undefined;
+  const modelOverride = process.env.AI_VISION_MODEL;
 
   if (providerOverride && providerOverride !== 'ollama') {
-    return buildCloudVisionConfig(providerOverride, env, modelOverride)
+    return buildCloudVisionConfig(providerOverride, env, modelOverride);
   }
   if (providerOverride === 'ollama') {
-    return buildOllamaVisionConfig(modelOverride)
+    return buildOllamaVisionConfig(modelOverride);
   }
 
   switch (env) {
-    case 'development': return buildOllamaVisionConfig(modelOverride)
-    case 'test':         return buildCloudVisionConfig('anthropic', 'test', modelOverride)
-    case 'production':   return buildCloudVisionConfig('anthropic', 'production', modelOverride)
+    case 'development':
+      return buildOllamaVisionConfig(modelOverride);
+    case 'test':
+      return buildCloudVisionConfig('anthropic', 'test', modelOverride);
+    case 'production':
+      return buildCloudVisionConfig('anthropic', 'production', modelOverride);
   }
 }
 
@@ -36,26 +41,33 @@ function buildOllamaVisionConfig(modelOverride?: string): ProviderConfig {
     maxTokens: 2048,
     usePromptCache: false,
     env: 'development',
-  }
+  };
 }
 
 function buildCloudVisionConfig(
   provider: Exclude<AIProviderName, 'ollama'>,
   env: AIEnvironment,
-  modelOverride?: string
+  modelOverride?: string,
 ): ProviderConfig {
-  const isTest = env === 'test'
+  const isTest = env === 'test';
   // Reuse the same Claude models as completions — Sonnet/Haiku both handle
   // vision natively, no separate vision-tuned model needed on the cloud side.
   const defaults: Record<string, { test: string; production: string }> = {
-    anthropic: { test: 'claude-haiku-4-5-20251001', production: 'claude-sonnet-4-6' },
-  }
+    anthropic: {
+      test: 'claude-haiku-4-5-20251001',
+      production: 'claude-sonnet-4-6',
+    },
+    google: { test: 'gemini-3.5-flash', production: 'gemini-3.5-flash' },
+  };
 
   return {
     provider,
-    model: modelOverride ?? defaults[provider]?.[isTest ? 'test' : 'production'] ?? 'claude-sonnet-4-6',
+    model:
+      modelOverride ??
+      defaults[provider]?.[isTest ? 'test' : 'production'] ??
+      'claude-sonnet-4-6',
     maxTokens: isTest ? 512 : 1024,
-    usePromptCache: false,   // images aren't cached the same way; keep simple for now
+    usePromptCache: false, // images aren't cached the same way; keep simple for now
     env,
-  }
+  };
 }

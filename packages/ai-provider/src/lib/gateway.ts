@@ -65,25 +65,26 @@ export const generateStructured = async <T>(
   const result = await execute(
     async () => {
       const model = await buildModel(config);
-      return generateText({
+      const raw = await generateText({
         model,
         system,
         messages,
         output: Output.object({ schema: options.schema }),
         maxOutputTokens: config.maxTokens,
       });
+      // Access .output INSIDE the protected callback — same fix as
+      // generateStructuredFromImage. A schema-validation failure here now
+      // gets caught by execute()'s try/catch, wrapped as AIProviderError,
+      // retried if transient, and properly emitted as request.failure —
+      // instead of throwing raw and unwrapped after execute() "succeeded".
+      return { output: raw.output as T, usage: raw.usage };
     },
     config,
     timeout,
     options.traceId,
   );
 
-  return buildResponse(
-    result.output as T,
-    result.usage,
-    config,
-    options.cacheKey,
-  );
+  return buildResponse(result.output, result.usage, config, options.cacheKey);
 };
 
 export async function generatePlainText(
@@ -293,9 +294,7 @@ function buildResponse<T>(
 }
 
 /** Extracts a normalised usage object from a generateText result for events. */
-function extractUsage(
-  result: unknown,
-):
+function extractUsage(result: unknown):
   | {
       inputTokens: number;
       outputTokens: number;
