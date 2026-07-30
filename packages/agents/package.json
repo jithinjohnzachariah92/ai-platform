@@ -1,0 +1,26 @@
+{
+  "name": "@jz92/agents",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@ai-platform/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
+    "@jz92/ai-core": "^0.3.0",
+    "tslib": "^2.3.0"
+  }
+}
