@@ -182,19 +182,29 @@ type GuardrailEvent = BaseEvent & {
 };
 
 // ── agent events ──────────────────────────────────────────────────────────────
+// Covers the full ReAct loop: observe → think/plan → act → reflect, plus a
+// self-critique sub-step and the max-iteration guard. Each stage gets its own
+// start/complete pair (same entry/exit discipline as every other package),
+// so a subscriber can see exactly which stage is running and how long it took.
 
 type AgentEvent = BaseEvent & {
-  source: 'agents';
+  source: 'agents'
   type:
-    | 'step.start'
-    | 'step.complete'
-    | 'plan.created'
-    | 'loop.complete'
-    | 'loop.failed';
-  step?: string;
-  totalSteps?: number;
-  attempt?: number;
-};
+    | 'observe.start' | 'observe.complete'
+    | 'think.start' | 'think.complete'
+    | 'act.start' | 'act.complete' | 'act.failed'
+    | 'reflect.start' | 'reflect.complete'
+    | 'critique.start' | 'critique.complete' | 'critique.revised'
+    | 'loop.iteration' | 'loop.max_iterations_exceeded'
+    | 'loop.complete' | 'loop.failed'
+  domain: string          // which agent/task this belongs to, e.g. 'toy-task-demo'
+                           // — same reasoning as retrieval's domain field: multiple
+                           // agent tasks will eventually share this event shape
+  iteration?: number       // which loop iteration this event belongs to
+  maxIterations?: number
+  step?: string            // human-readable description of what this step did
+  reason?: string          // why a step failed, or why critique revised the output
+}
 
 // ── The discriminated union ───────────────────────────────────────────────────
 // The subscriber receives one of these. TypeScript narrows the type based on
