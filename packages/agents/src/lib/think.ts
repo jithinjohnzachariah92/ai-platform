@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { emit } from '@jz92/ai-core'
 import type { AIEnvironment } from '@jz92/ai-core'
-import type { AgentState } from './types.js'
+import type { AgentState, AgentMessage } from './types.js'
 
 const getEnv = (): AIEnvironment => (process.env.NODE_ENV as AIEnvironment) ?? 'development'
 
@@ -10,18 +10,24 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 export type ThinkResult = {
   state: AgentState
   responseText: string
-  stopReason: string | null   // raw Anthropic stop_reason — 'end_turn' | 'tool_use' | etc.
-                                // No tools registered this phase, so expect 'end_turn'
-                                // almost always; act.ts branches on this value regardless,
-                                // ready for Phase 2 to register real tools against it.
+  stopReason: string | null
+  promptedMessage: AgentMessage   // the user-role message just sent — act() needs
+                                   // this to correctly record it in history
 }
 
-const SYSTEM_PROMPT = `You are an agent working through a task step by step.
-Think through what to do next, then either continue reasoning or, if the
-task is fully resolved, clearly state "TASK COMPLETE:" followed by your
-final answer.`
+const SYSTEM_PROMPT = `You are an agent working through a task step by step across
+multiple turns. Each turn, you'll be reminded to continue or conclude. Think
+through what to do next, then either continue reasoning or, if the task is fully
+resolved, clearly state "TASK COMPLETE:" followed by your final answer. Do not
+restart your reasoning from scratch each turn — build on what you've already
+worked out.`
 
-export const think = async (state: AgentState, context: string): Promise<ThinkResult> => {
+const CONTINUATION_PROMPT = `Continue working on this task, building on your
+reasoning so far. If you have reached a final answer that satisfies every
+constraint, respond with exactly "TASK COMPLETE:" followed by the complete
+answer. Otherwise, continue toward a conclusion — do not restart from scratch.`
+
+export const think = async (state: AgentState): Promise<ThinkResult> => {
   const start = Date.now()
 
   emit({
@@ -30,11 +36,20 @@ export const think = async (state: AgentState, context: string): Promise<ThinkRe
     env: getEnv(), domain: state.domain, iteration: state.iteration,
   })
 
+  const promptedMessage: AgentMessage = state.messages.length === 0
+    ? { role: 'user', content: `Task: ${state.task}` }
+    : { role: 'user', content: CONTINUATION_PROMPT }
+
+  const messages = [...state.messages, promptedMessage].map((m) => ({
+    role: (m.role === 'tool' ? 'user' : m.role) as 'user' | 'assistant',
+    content: m.content,
+  }))
+
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 1024,
+    max_tokens: 2048,   // raised from 1024 — math reasoning needs room to actually conclude
     system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: context }],
+    messages,
   })
 
   const responseText = response.content
@@ -46,8 +61,8 @@ export const think = async (state: AgentState, context: string): Promise<ThinkRe
     source: 'agents', type: 'think.complete', traceId: state.traceId ?? '',
     timestamp: new Date().toISOString(), durationMs: Date.now() - start,
     env: getEnv(), domain: state.domain, iteration: state.iteration,
-    step: responseText.slice(0, 100),   // short preview for the event log
+    step: responseText.slice(0, 100),
   })
 
-  return { state, responseText, stopReason: response.stop_reason }
+  return { state, responseText, stopReason: response.stop_reason, promptedMessage }
 }

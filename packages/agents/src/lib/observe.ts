@@ -19,15 +19,11 @@ export const observe = (state: AgentState): ObserveResult => {
     env: getEnv(), domain: state.domain, iteration: state.iteration,
   })
 
-  const context = state.messages.length === 0
-    ? `Task: ${state.task}`
-    : state.messages.map((m) => `${m.role}: ${m.content}`).join('\n')
-
   emit({
     source: 'agents', type: 'observe.complete', traceId: state.traceId ?? '',
     timestamp: new Date().toISOString(), durationMs: Date.now() - start,
     env: getEnv(), domain: state.domain, iteration: state.iteration,
   })
 
-  return { state, context }
+  return { state }
 }

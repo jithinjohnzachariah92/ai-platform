@@ -21,5 +21,4 @@ export type AgentState = {
 
 export type ObserveResult = {
   state: AgentState
-  context: string   // formatted context handed to the next (think) stage
 }

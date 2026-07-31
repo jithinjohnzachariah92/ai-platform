@@ -60,8 +60,8 @@ export const runAgent = async (
       maxIterations,
     });
 
-    const { state: observedState, context } = observe(state);
-    const thinkResult = await think(observedState, context);
+    const { state: observedState } = observe(state);
+    const thinkResult = await think(observedState);
     const actResult = await act(thinkResult);
     const { state: reflectedState, isDone, finalAnswer } = reflect(actResult);
 

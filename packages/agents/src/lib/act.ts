@@ -17,7 +17,7 @@ export type ActResult = {
 // place to add real execution rather than restructuring the loop later.
 
 export const act = async (thinkResult: ThinkResult): Promise<ActResult> => {
-  const { state, responseText, stopReason } = thinkResult
+  const { state, responseText, stopReason, promptedMessage } = thinkResult
   const start = Date.now()
 
   emit({
@@ -26,12 +26,14 @@ export const act = async (thinkResult: ThinkResult): Promise<ActResult> => {
     env: getEnv(), domain: state.domain, iteration: state.iteration,
   })
 
-  const updatedMessages = [...state.messages, { role: 'assistant' as const, content: responseText }]
+  // Both turns recorded, in order — this is what fixes the broken history.
+  const updatedMessages = [
+    ...state.messages,
+    promptedMessage,
+    { role: 'assistant' as const, content: responseText },
+  ]
 
   if (stopReason === 'tool_use') {
-    // Deliberately not implemented — Phase 2 (Multi-Tool Orchestrator) wires
-    // real tool execution here. Emitting act.failed rather than silently
-    // no-op'ing, so this gap is visible in the event stream if it's ever hit.
     emit({
       source: 'agents', type: 'act.failed', traceId: state.traceId ?? '',
       timestamp: new Date().toISOString(), durationMs: Date.now() - start,
