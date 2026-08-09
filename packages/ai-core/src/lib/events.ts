@@ -26,7 +26,8 @@ type BaseEvent = {
     | 'guardrails'
     | 'agents'
     | 'prompts'
-    | 'evals';
+    | 'evals'
+    | 'tools';
   type: string;
 
   // When + how long
@@ -206,6 +207,24 @@ type AgentEvent = BaseEvent & {
   reason?: string          // why a step failed, or why critique revised the output
 }
 
+// ── tool events ────────────────────────────────────────────────────────────────
+// Distinct from AgentEvent — the agent deciding to call a tool (agents.act.*)
+// is a different concern from the tool actually executing (tools.call.*), same
+// separation already established between retrieval (the decision to
+// retrieve/store) and vector (the actual DB operation).
+
+type ToolEvent = BaseEvent & {
+  source: 'tools'
+  type:
+    | 'call.start' | 'call.success'
+    | 'call.input_invalid' | 'call.output_invalid'
+    | 'call.failure'
+  toolName: string
+  domain: string
+  invocationKind: 'function' | 'mcp' | 'api' | 'cli'
+  reason?: string
+}
+
 // ── The discriminated union ───────────────────────────────────────────────────
 // The subscriber receives one of these. TypeScript narrows the type based on
 // source + type so you get full autocomplete inside switch/if blocks:
@@ -232,7 +251,8 @@ export type PlatformEvent =
   | RetrievalEvent
   | RetrievalStoreEvent
   | GuardrailEvent
-  | AgentEvent;
+  | AgentEvent
+  | ToolEvent;
 
 type Subscriber = (event: PlatformEvent) => void;
 
