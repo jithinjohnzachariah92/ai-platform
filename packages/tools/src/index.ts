@@ -10,3 +10,5 @@ export type {
 } from './lib/types.js'
 export { connectMcpServer } from './lib/mcpAdapter.js'
 export type { McpAdapterConfig } from './lib/mcpAdapter.js'
+export { toAnthropicToolDefs } from './lib/anthropicToolFormat.js'
+export type { AnthropicToolDef } from './lib/anthropicToolFormat.js'
