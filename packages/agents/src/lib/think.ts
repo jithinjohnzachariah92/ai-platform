@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { emit } from '@jz92/ai-core'
 import type { AIEnvironment } from '@jz92/ai-core'
 import type { AgentState, AgentMessage } from './types.js'
+import type { AnthropicToolDef } from '@jz92/tools'
 
 const getEnv = (): AIEnvironment => (process.env.NODE_ENV as AIEnvironment) ?? 'development'
 
@@ -11,23 +12,26 @@ export type ThinkResult = {
   state: AgentState
   responseText: string
   stopReason: string | null
-  promptedMessage: AgentMessage   // the user-role message just sent — act() needs
-                                   // this to correctly record it in history
+  promptedMessage: AgentMessage
+  toolUse?: { name: string; input: unknown; id: string }   // present when Claude wants to call a tool
 }
 
 const SYSTEM_PROMPT = `You are an agent working through a task step by step across
 multiple turns. Each turn, you'll be reminded to continue or conclude. Think
-through what to do next, then either continue reasoning or, if the task is fully
-resolved, clearly state "TASK COMPLETE:" followed by your final answer. Do not
-restart your reasoning from scratch each turn — build on what you've already
-worked out.`
+through what to do next, then either continue reasoning, call an available
+tool if one is relevant, or — if the task is fully resolved — clearly state
+"TASK COMPLETE:" followed by your final answer. Do not restart your reasoning
+from scratch each turn — build on what you've already worked out.`
 
 const CONTINUATION_PROMPT = `Continue working on this task, building on your
 reasoning so far. If you have reached a final answer that satisfies every
 constraint, respond with exactly "TASK COMPLETE:" followed by the complete
 answer. Otherwise, continue toward a conclusion — do not restart from scratch.`
 
-export const think = async (state: AgentState): Promise<ThinkResult> => {
+export const think = async (
+  state: AgentState,
+  tools?: AnthropicToolDef[]
+): Promise<ThinkResult> => {
   const start = Date.now()
 
   emit({
@@ -47,22 +51,28 @@ export const think = async (state: AgentState): Promise<ThinkResult> => {
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 2048,   // raised from 1024 — math reasoning needs room to actually conclude
+    max_tokens: 2048,
     system: SYSTEM_PROMPT,
     messages,
+    tools: tools && tools.length > 0 ? tools : undefined,
   })
 
-  const responseText = response.content
-    .filter((block) => block.type === 'text')
-    .map((block) => (block as { text: string }).text)
-    .join('\n')
+  const textBlocks = response.content.filter((b) => b.type === 'text')
+  const responseText = textBlocks.map((b) => (b as { text: string }).text).join('\n')
+
+  const toolUseBlock = response.content.find((b) => b.type === 'tool_use') as
+    | { type: 'tool_use'; id: string; name: string; input: unknown }
+    | undefined
 
   emit({
     source: 'agents', type: 'think.complete', traceId: state.traceId ?? '',
     timestamp: new Date().toISOString(), durationMs: Date.now() - start,
     env: getEnv(), domain: state.domain, iteration: state.iteration,
-    step: responseText.slice(0, 100),
+    step: (responseText || `tool_use: ${toolUseBlock?.name}`).slice(0, 100),
   })
 
-  return { state, responseText, stopReason: response.stop_reason, promptedMessage }
+  return {
+    state, responseText, stopReason: response.stop_reason, promptedMessage,
+    toolUse: toolUseBlock ? { name: toolUseBlock.name, input: toolUseBlock.input, id: toolUseBlock.id } : undefined,
+  }
 }

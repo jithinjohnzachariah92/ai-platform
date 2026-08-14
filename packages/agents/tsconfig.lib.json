@@ -11,7 +11,7 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
-      "path": "../ai-core/tsconfig.lib.json"
+      "path": "../tools/tsconfig.lib.json"
     }
   ]
 }
