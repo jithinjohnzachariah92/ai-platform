@@ -20,6 +20,9 @@
     },
     {
       "path": "./packages/agents"
+    },
+    {
+      "path": "./packages/tools"
     }
   ]
 }
