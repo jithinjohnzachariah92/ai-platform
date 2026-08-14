@@ -12,6 +12,9 @@
   "references": [
     {
       "path": "../tools/tsconfig.lib.json"
+    },
+    {
+      "path": "../ai-core/tsconfig.lib.json"
     }
   ]
 }
