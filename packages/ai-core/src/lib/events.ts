@@ -218,6 +218,7 @@ type ToolEvent = BaseEvent & {
   type:
     | 'call.start' | 'call.success'
     | 'call.input_invalid' | 'call.output_invalid'
+    | 'call.permission_denied'
     | 'call.failure'
   toolName: string
   domain: string
