@@ -8,17 +8,10 @@ export type CallToolResult =
   | { success: true; data: unknown }
   | { success: false; reason: string }
 
-// ── callTool ───────────────────────────────────────────────────────────────────
-// The actual execution path: validate input against the tool's schema, run the
-// handler, validate output against the tool's schema, emit proper events at
-// every stage. This is what makes the registry trustworthy — a tool can never
-// silently receive malformed input or return malformed output without it being
-// caught and surfaced, not passed through.
-
 export const callTool = async (
   tool: RegisteredTool,
   rawInput: unknown,
-  context?: { traceId?: string }
+  context?: { traceId?: string; grantedPermissions?: string[] }
 ): Promise<CallToolResult> => {
   const { capability, handler } = tool
   const traceId = context?.traceId ?? ''
@@ -30,6 +23,28 @@ export const callTool = async (
     env: getEnv(), toolName: capability.name, domain: capability.domain,
     invocationKind: capability.invocationKind,
   })
+
+  // ── Permission scoping ──────────────────────────────────────────────────────
+  // A tool with no requiredPermissions declared is open to any caller — no
+  // change from before. A tool that declares required permissions rejects
+  // any caller missing even one of them, checked BEFORE input validation —
+  // no reason to validate input for a call that's going to be denied anyway.
+  const required = capability.requiredPermissions ?? []
+  if (required.length > 0) {
+    const granted = new Set(context?.grantedPermissions ?? [])
+    const missing = required.filter((p) => !granted.has(p))
+
+    if (missing.length > 0) {
+      const reason = `missing required permission(s): ${missing.join(', ')}`
+      emit({
+        source: 'tools', type: 'call.permission_denied', traceId,
+        timestamp: new Date().toISOString(), durationMs: Date.now() - start,
+        env: getEnv(), toolName: capability.name, domain: capability.domain,
+        invocationKind: capability.invocationKind, reason,
+      })
+      return { success: false, reason }
+    }
+  }
 
   const inputResult = capability.inputSchema.safeParse(rawInput)
   if (!inputResult.success) {
@@ -59,9 +74,6 @@ export const callTool = async (
 
   const outputResult = capability.outputSchema.safeParse(rawOutput)
   if (!outputResult.success) {
-    // A tool that returns malformed output is a real bug — surfaced here
-    // rather than passed through, same principle as the empty-filter
-    // collapse we chased down in NL2Mongo: never trust unvalidated shape.
     const reason = `output validation failed: ${outputResult.error.message}`
     emit({
       source: 'tools', type: 'call.output_invalid', traceId,

@@ -19,7 +19,7 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@jz92/ai-core": "^0.4.0",
+    "@jz92/ai-core": "^0.5.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "tslib": "^2.3.0",
     "zod": "^4.4.3"
